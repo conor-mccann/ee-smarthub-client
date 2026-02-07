@@ -73,6 +73,13 @@ def parse_get_response(data: bytes) -> list[Host]:
     return [host for g in grouped.values() if (host := _params_to_host(g)) is not None]
 
 
+def _safe_int(value: str) -> int:
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        return 0
+
+
 def _extract_frequency(layer1_interface: str) -> str | None:
     for key, band in _FREQUENCY_BANDS.items():
         if key in layer1_interface:
@@ -93,6 +100,6 @@ def _params_to_host(params: dict[str, str]) -> Host | None:
         active=params.get("Active", "0") == "1",
         interface_type=params.get("InterfaceType", ""),
         frequency_band=_extract_frequency(params.get("Layer1Interface", "")),
-        bytes_sent=int(params.get("BytesSent", 0) or 0),
-        bytes_received=int(params.get("BytesReceived", 0) or 0),
+        bytes_sent=_safe_int(params.get("BytesSent", "")),
+        bytes_received=_safe_int(params.get("BytesReceived", "")),
     )
