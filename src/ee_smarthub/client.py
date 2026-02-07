@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import aiohttp
 
 from ._mqtt import AGENT_ID_PREFIX, CONTROLLER_ID, send_request
