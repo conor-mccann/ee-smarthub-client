@@ -46,7 +46,7 @@ def _mock_session(mock_resp=None, *, get_error=None):
 @pytest.mark.asyncio
 async def test_get_hosts():
     raw_response = b"\x01\x02\x03"
-    expected_hosts = [Host(mac_address="AA:BB:CC:DD:EE:FF", name="phone", ip_address="192.168.1.10")]
+    expected_hosts = [Host(mac_address="AA:BB:CC:DD:EE:FF", hostname="phone", ip_address="192.168.1.10")]
 
     client = SmartHubClient("192.168.1.1", "secret")
 

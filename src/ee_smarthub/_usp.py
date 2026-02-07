@@ -1,3 +1,4 @@
+import re
 import uuid
 
 from .exceptions import ProtocolError
@@ -5,11 +6,9 @@ from .models import Host
 from .proto.usp import Body, Get, Header, HeaderMsgType, Msg, Request
 from .proto.usp_record import NoSessionContextRecord, Record, RecordPayloadSecurity
 
-_HOST_FIELD_MAP = {
-    "HostName": "name",
-    "IPAddress": "ip_address",
-    "MACAddress": "mac_address",
-}
+_HOST_PATH_RE = re.compile(r"^(Device\.Hosts\.Host\.\d+\.)")
+
+_FREQUENCY_BANDS = {"Radio.1": "2.4GHz", "Radio.2": "5GHz", "Radio.3": "6GHz"}
 
 
 def build_get_request(to_id: str, from_id: str, path: str) -> bytes:
@@ -53,32 +52,47 @@ def parse_get_response(data: bytes) -> list[Host]:
         raise ProtocolError("Response missing expected get_resp structure")
 
     get_resp = msg.body.response.get_resp
-    hosts: list[Host] = []
     for req_path_result in get_resp.req_path_results:
         if req_path_result.err_code != 0:
             raise ProtocolError(
                 f"USP error {req_path_result.err_code}: {req_path_result.err_msg}"
             )
+
+    # Group resolved paths by host (e.g. Device.Hosts.Host.1.)
+    # so sub-paths like WANStats get merged into the parent host.
+    grouped: dict[str, dict[str, str]] = {}
+    for req_path_result in get_resp.req_path_results:
         for resolved in req_path_result.resolved_path_results:
-            host = _params_to_host(resolved.result_params)
-            if host is not None:
-                hosts.append(host)
+            match = _HOST_PATH_RE.match(resolved.resolved_path)
+            if not match:
+                continue
+            host_prefix = match.group(1)
+            params = grouped.setdefault(host_prefix, {})
+            params.update(resolved.result_params)
 
-    return hosts
+    return [host for g in grouped.values() if (host := _params_to_host(g)) is not None]
 
 
-def _params_to_host(result_params: dict[str, str]) -> Host | None:
-    mapped: dict[str, str] = {}
-    for key, value in result_params.items():
-        leaf = key.rsplit(".", 1)[-1]
-        if leaf in _HOST_FIELD_MAP:
-            mapped[_HOST_FIELD_MAP[leaf]] = value
+def _extract_frequency(layer1_interface: str) -> str | None:
+    for key, band in _FREQUENCY_BANDS.items():
+        if key in layer1_interface:
+            return band
+    return None
 
-    if "mac_address" not in mapped:
+
+def _params_to_host(params: dict[str, str]) -> Host | None:
+    mac = params.get("PhysAddress")
+    if not mac:
         return None
 
     return Host(
-        mac_address=mapped["mac_address"],
-        name=mapped.get("name", ""),
-        ip_address=mapped.get("ip_address", ""),
+        mac_address=mac,
+        ip_address=params.get("IPAddress", ""),
+        hostname=params.get("HostName", ""),
+        user_friendly_name=params.get("X_BT-COM_UserHostName", ""),
+        active=params.get("Active", "0") == "1",
+        interface_type=params.get("InterfaceType", ""),
+        frequency_band=_extract_frequency(params.get("Layer1Interface", "")),
+        bytes_sent=int(params.get("BytesSent", 0) or 0),
+        bytes_received=int(params.get("BytesReceived", 0) or 0),
     )
