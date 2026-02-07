@@ -5,9 +5,18 @@ build-backend = "hatchling.build"
 [project]
 name = "ee-smarthub"
 version = "0.1.0"
-description = "Async client for EE SmartHub routers via USP protocol"
+authors = [
+    { name = "Conor McCann" },
+]
+description = "Async Python client for querying connected devices on EE SmartHub routers via USP over MQTT WebSocket"
+readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Framework :: AsyncIO",
+    "Topic :: Home Automation",
+]
 dependencies = [
     "betterproto2>=0.9.1",
     "aiomqtt>=2.0",
@@ -23,8 +32,15 @@ dev = [
     "ruff>=0.9.0",
 ]
 
+[project.urls]
+Repository = "https://github.com/conor-mccann/ee-smarthub-client"
+Issues = "https://github.com/conor-mccann/ee-smarthub-client/issues"
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/ee_smarthub"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "strict"
 
 [tool.ruff]
 target-version = "py311"

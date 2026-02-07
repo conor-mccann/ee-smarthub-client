@@ -12,13 +12,39 @@ The EE SmartHub web interface is React-based and dynamically loads data via Java
 
 ## Installation
 
-Not yet published to PyPI. Install from source:
-
 ```bash
-git clone https://github.com/conor-mccann/ee-smarthub-client.git
-cd ee-smarthub-client
-pip install -e ".[dev]"
+pip install ee-smarthub
 ```
+
+## Usage
+
+```python
+import asyncio
+from ee_smarthub import SmartHubClient
+
+async def main():
+    client = SmartHubClient("192.168.1.1", "your-password")
+    hosts = await client.get_hosts()
+    for host in hosts:
+        print(f"{host.name:30s} {host.ip_address:15s} {host.mac_address}")
+
+asyncio.run(main())
+```
+
+Each `Host` object contains:
+
+| Field | Type | Description |
+|---|---|---|
+| `mac_address` | `str` | Physical (MAC) address |
+| `ip_address` | `str` | IP address |
+| `hostname` | `str` | DHCP hostname |
+| `user_friendly_name` | `str` | User-assigned name (BT vendor extension) |
+| `name` | `str` (property) | Best available name (user-friendly > hostname > MAC) |
+| `active` | `bool` | Currently connected |
+| `interface_type` | `str` | Connection type (e.g. "Wi-Fi", "Ethernet") |
+| `frequency_band` | `str \| None` | Wi-Fi band (e.g. "2.4GHz", "5GHz") |
+| `bytes_sent` | `int` | Total bytes sent |
+| `bytes_received` | `int` | Total bytes received |
 
 ## How It Works
 
