@@ -2,7 +2,7 @@ class SmartHubError(Exception):
     """Base exception for all ee_smarthub errors."""
 
 
-class ConnectionError(SmartHubError):
+class CommunicationError(SmartHubError):
     """Failed to connect to or communicate with the router."""
 
 

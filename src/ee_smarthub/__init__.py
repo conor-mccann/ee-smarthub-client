@@ -1,7 +1,7 @@
 from .client import SmartHubClient
 from .exceptions import (
     AuthenticationError,
-    ConnectionError,
+    CommunicationError,
     ProtocolError,
     SmartHubError,
 )
@@ -9,7 +9,7 @@ from .models import Host
 
 __all__ = [
     "AuthenticationError",
-    "ConnectionError",
+    "CommunicationError",
     "Host",
     "ProtocolError",
     "SmartHubClient",

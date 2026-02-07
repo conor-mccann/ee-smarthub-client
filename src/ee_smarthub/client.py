@@ -2,7 +2,7 @@ import aiohttp
 
 from ._mqtt import AGENT_ID_PREFIX, CONTROLLER_ID, send_request
 from ._usp import build_get_request, parse_get_response
-from .exceptions import ConnectionError, ProtocolError
+from .exceptions import CommunicationError, ProtocolError
 from .models import Host
 
 _HOST_PATH = "Device.Hosts.Host."
@@ -22,12 +22,12 @@ class SmartHubClient:
             async with aiohttp.ClientSession() as session:
                 async with session.get(url, ssl=False) as resp:
                     resp.raise_for_status()
-                    data = await resp.json()
+                    data = await resp.json(content_type=None)
         except aiohttp.ClientError as exc:
-            raise ConnectionError(
+            raise CommunicationError(
                 f"Failed to fetch serial number from {url}: {exc}"
             ) from exc
-        except (ValueError, KeyError) as exc:
+        except (ValueError, AttributeError) as exc:
             raise ProtocolError(
                 f"Invalid JSON response from {url}: {exc}"
             ) from exc

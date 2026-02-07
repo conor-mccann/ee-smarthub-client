@@ -4,7 +4,7 @@ import uuid
 
 import aiomqtt
 
-from .exceptions import AuthenticationError, ConnectionError, ProtocolError
+from .exceptions import AuthenticationError, CommunicationError, ProtocolError
 from .proto.usp_record import (
     MqttConnectRecord,
     MqttConnectRecordMqttVersion,
@@ -54,7 +54,7 @@ async def send_request(
 ) -> bytes:
     """Send a USP request over MQTT-over-WebSocket and return the raw response.
 
-    Raises ConnectionError, AuthenticationError, or ProtocolError on failure.
+    Raises CommunicationError, AuthenticationError, or ProtocolError on failure.
     """
     ssl_ctx = _create_insecure_ssl_context()
     client_id = f"ee-smarthub-{uuid.uuid4().hex[:8]}"
@@ -82,15 +82,15 @@ async def send_request(
 
             async with asyncio.timeout(timeout):
                 async for message in client.messages:
-                    return bytes(message.payload)
+                    return message.payload
 
     except aiomqtt.MqttCodeError as exc:
         raise AuthenticationError(
             f"Router rejected MQTT connection: {exc}"
         ) from exc
     except aiomqtt.MqttError as exc:
-        raise ConnectionError(f"MQTT communication failed: {exc}") from exc
+        raise CommunicationError(f"MQTT communication failed: {exc}") from exc
     except TimeoutError as exc:
-        raise ConnectionError("Timed out waiting for USP response") from exc
+        raise CommunicationError("Timed out waiting for USP response") from exc
 
     raise ProtocolError("No response received from router")

@@ -5,7 +5,7 @@ import pytest
 
 from ee_smarthub._mqtt import AGENT_ID_PREFIX, CONTROLLER_ID
 from ee_smarthub.client import SmartHubClient
-from ee_smarthub.exceptions import ConnectionError, ProtocolError
+from ee_smarthub.exceptions import CommunicationError, ProtocolError
 from ee_smarthub.models import Host
 
 _SERIAL = "CP2231TEST"
@@ -87,7 +87,7 @@ async def test_fetch_serial_http_error():
 
     with patch("ee_smarthub.client.aiohttp.ClientSession", return_value=session):
         client = SmartHubClient("192.168.1.1", "secret")
-        with pytest.raises(ConnectionError, match="Failed to fetch serial number"):
+        with pytest.raises(CommunicationError, match="Failed to fetch serial number"):
             await client._fetch_serial()
 
 
@@ -98,7 +98,7 @@ async def test_fetch_serial_http_status_error():
 
     with patch("ee_smarthub.client.aiohttp.ClientSession", return_value=session):
         client = SmartHubClient("192.168.1.1", "secret")
-        with pytest.raises(ConnectionError, match="Failed to fetch serial number"):
+        with pytest.raises(CommunicationError, match="Failed to fetch serial number"):
             await client._fetch_serial()
 
 

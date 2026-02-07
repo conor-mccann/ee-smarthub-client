@@ -10,7 +10,7 @@ from ee_smarthub._mqtt import (
     _build_connect_record,
     send_request,
 )
-from ee_smarthub.exceptions import AuthenticationError, ConnectionError
+from ee_smarthub.exceptions import AuthenticationError, CommunicationError
 from ee_smarthub.proto.usp_record import Record
 
 _PATCH_TARGET = "ee_smarthub._mqtt.aiomqtt.Client"
@@ -98,7 +98,7 @@ async def test_send_request_connection_error():
     mock.__aexit__ = AsyncMock(return_value=False)
 
     with patch(_PATCH_TARGET, return_value=mock):
-        with pytest.raises(ConnectionError, match="MQTT communication failed"):
+        with pytest.raises(CommunicationError, match="MQTT communication failed"):
             await send_request(
                 hostname="192.168.1.1",
                 password="pass",
@@ -112,7 +112,7 @@ async def test_send_request_timeout():
     mock = _mock_client(_hang_forever())
 
     with patch(_PATCH_TARGET, return_value=mock):
-        with pytest.raises(ConnectionError, match="Timed out"):
+        with pytest.raises(CommunicationError, match="Timed out"):
             await send_request(
                 hostname="192.168.1.1",
                 password="pass",
