@@ -16,7 +16,7 @@ CONTROLLER_ID = "usp-gui-admin"
 AGENT_ID_PREFIX = "os::012345-"
 
 _TOPIC_REQUEST = "/{serial}/usp/admin/request"
-_TOPIC_REPLY = "/{serial}/usp/admin/reply-to/{client_id}"
+_TOPIC_RESPONSE = "/{serial}/usp/admin/response"
 _USERNAME = "admin"
 _WS_PATH = "/ws"
 
@@ -60,7 +60,7 @@ async def send_request(
     client_id = f"ee-smarthub-{uuid.uuid4().hex[:8]}"
     agent_id = AGENT_ID_PREFIX + serial
     topic_request = _TOPIC_REQUEST.format(serial=serial)
-    topic_reply = _TOPIC_REPLY.format(serial=serial, client_id=client_id)
+    topic_response = _TOPIC_RESPONSE.format(serial=serial)
 
     try:
         async with aiomqtt.Client(
@@ -73,9 +73,9 @@ async def send_request(
             tls_context=ssl_ctx,
             websocket_path=_WS_PATH,
         ) as client:
-            await client.subscribe(topic_reply, qos=1)
+            await client.subscribe(topic_response, qos=1)
 
-            connect_record = _build_connect_record(agent_id, topic_reply)
+            connect_record = _build_connect_record(agent_id, topic_response)
             await client.publish(topic_request, payload=connect_record, qos=1)
 
             await client.publish(topic_request, payload=request_payload, qos=1)

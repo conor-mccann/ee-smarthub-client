@@ -55,7 +55,7 @@ async def test_send_request_message_sequence():
     mock.subscribe.assert_called_once()
     subscribe_topic = mock.subscribe.call_args[0][0]
     assert serial in subscribe_topic
-    assert "reply-to" in subscribe_topic
+    assert "response" in subscribe_topic
 
     assert mock.publish.call_count == 2
     first_call, second_call = mock.publish.call_args_list
@@ -124,7 +124,7 @@ async def test_send_request_timeout():
 
 def test_build_connect_record():
     agent_id = "os::012345-SERIAL123"
-    topic = "/SERIAL123/usp/admin/reply-to/test-client"
+    topic = "/SERIAL123/usp/admin/response"
 
     data = _build_connect_record(agent_id, topic)
     record = Record().parse(data)
