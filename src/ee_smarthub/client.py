@@ -14,9 +14,13 @@ class SmartHubClient:
     def __init__(self, hostname: str, password: str) -> None:
         self._hostname = hostname
         self._password = password
+        self._serial: str | None = None
 
     async def _fetch_serial(self) -> str:
-        """Fetch the router serial number from its config endpoint."""
+        """Fetch the router serial number, caching it for subsequent calls."""
+        if self._serial is not None:
+            return self._serial
+
         url = f"https://{self._hostname}/config.json"
         try:
             async with aiohttp.ClientSession() as session:
@@ -35,6 +39,7 @@ class SmartHubClient:
         serial = data.get("SerialNumber")
         if not serial:
             raise ProtocolError("SerialNumber missing from config.json response")
+        self._serial = serial
         return serial
 
     async def get_hosts(self) -> list[Host]:
