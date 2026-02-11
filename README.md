@@ -1,14 +1,18 @@
 # EE SmartHub Client
 
+[![PyPI](https://img.shields.io/pypi/v/ee-smarthub)](https://pypi.org/project/ee-smarthub/)
+[![Python](https://img.shields.io/pypi/pyversions/ee-smarthub)](https://pypi.org/project/ee-smarthub/)
+[![License: MIT](https://img.shields.io/pypi/l/ee-smarthub)](https://github.com/conor-mccann/ee-smarthub-client/blob/main/LICENSE)
+
 Python async client library for interacting with EE SmartHub routers using the USP protocol over MQTT WebSocket.
 
 ## Why This Library?
 
 The EE SmartHub web interface is React-based and dynamically loads data via JavaScript, making traditional web scraping impractical. This library uses the router's native USP (User Services Platform) protocol providing:
 
-- **Reliable data access** - Won't break with UI changes
-- **Efficient communication** - Direct protocol access, not HTML parsing
-- **Structured data** - Clean, typed Python objects
+- **Reliable data access** — won't break with UI changes
+- **Efficient communication** — direct protocol access, not HTML parsing
+- **Structured data** — clean, typed Python objects
 
 ## Installation
 
@@ -18,33 +22,51 @@ pip install ee-smarthub
 
 ## Usage
 
+The client requires an `aiohttp.ClientSession`, allowing callers to manage session lifecycle.
+
 ```python
 import asyncio
+import aiohttp
 from ee_smarthub import SmartHubClient
 
 async def main():
-    client = SmartHubClient("192.168.1.1", "your-password")
-    hosts = await client.get_hosts()
-    for host in hosts:
-        print(f"{host.name:30s} {host.ip_address:15s} {host.mac_address}")
+    async with aiohttp.ClientSession() as session:
+        client = SmartHubClient("192.168.1.1", "your-password", session)
+        hosts = await client.get_hosts()
+        for host in hosts:
+            print(f"{host.name:30s} {host.ip_address:15s} {host.mac_address}")
 
 asyncio.run(main())
 ```
 
+### Validating Credentials
+
+To check that the router is reachable and the password is correct without fetching device data:
+
+```python
+async with aiohttp.ClientSession() as session:
+    client = SmartHubClient("192.168.1.1", "your-password", session)
+    await client.validate_connection()  # raises on failure
+```
+
+This performs an HTTP fetch and MQTT connect/disconnect.
+
+### Host Fields
+
 Each `Host` object contains:
 
-| Field | Type | Description |
-|---|---|---|
-| `mac_address` | `str` | Physical (MAC) address |
-| `ip_address` | `str` | IP address |
-| `hostname` | `str` | DHCP hostname |
-| `user_friendly_name` | `str` | User-assigned name (BT vendor extension) |
-| `name` | `str` (property) | Best available name (user-friendly > hostname > MAC) |
-| `active` | `bool` | Currently connected |
-| `interface_type` | `str` | Connection type (e.g. "Wi-Fi", "Ethernet") |
-| `frequency_band` | `str \| None` | Wi-Fi band (e.g. "2.4GHz", "5GHz") |
-| `bytes_sent` | `int` | Total bytes sent |
-| `bytes_received` | `int` | Total bytes received |
+| Field                | Type             | Description                                          |
+| -------------------- | ---------------- | ---------------------------------------------------- |
+| `mac_address`        | `str`            | Physical (MAC) address                               |
+| `ip_address`         | `str`            | IP address                                           |
+| `hostname`           | `str`            | DHCP hostname                                        |
+| `user_friendly_name` | `str`            | User-assigned name (BT vendor extension)             |
+| `name`               | `str` (property) | Best available name (user-friendly > hostname > MAC) |
+| `active`             | `bool`           | Currently connected                                  |
+| `interface_type`     | `str`            | Connection type (e.g. "Wi-Fi", "Ethernet")           |
+| `frequency_band`     | `str \| None`    | Wi-Fi band (e.g. "2.4GHz", "5GHz")                   |
+| `bytes_sent`         | `int`            | Total bytes sent                                     |
+| `bytes_received`     | `int`            | Total bytes received                                 |
 
 ## How It Works
 

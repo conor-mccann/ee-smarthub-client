@@ -44,6 +44,34 @@ def _build_connect_record(agent_id: str, subscribe_topic: str) -> bytes:
     return bytes(record)
 
 
+async def test_credentials(hostname: str, password: str) -> None:
+    """Connect and immediately disconnect to verify the router is reachable and password is correct.
+
+    Raises AuthenticationError on bad credentials, CommunicationError on network failure.
+    """
+    ssl_ctx = _create_insecure_ssl_context()
+    client_id = f"ee-smarthub-{uuid.uuid4().hex[:8]}"
+
+    try:
+        async with aiomqtt.Client(
+            hostname=hostname,
+            port=443,
+            username=_USERNAME,
+            password=password,
+            identifier=client_id,
+            transport="websockets",
+            tls_context=ssl_ctx,
+            websocket_path=_WS_PATH,
+        ):
+            pass  # successful connect + auto-disconnect proves credentials
+    except aiomqtt.MqttCodeError as exc:
+        raise AuthenticationError(
+            f"Router rejected MQTT connection: {exc}"
+        ) from exc
+    except aiomqtt.MqttError as exc:
+        raise CommunicationError(f"MQTT communication failed: {exc}") from exc
+
+
 async def send_request(
     hostname: str,
     password: str,

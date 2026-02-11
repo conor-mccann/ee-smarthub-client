@@ -1,6 +1,6 @@
 import aiohttp
 
-from ._mqtt import AGENT_ID_PREFIX, CONTROLLER_ID, send_request
+from ._mqtt import AGENT_ID_PREFIX, CONTROLLER_ID, send_request, test_credentials
 from ._usp import build_get_request, parse_get_response
 from .exceptions import CommunicationError, ProtocolError
 from .models import Host
@@ -11,9 +11,12 @@ _HOST_PATH = "Device.Hosts.Host."
 class SmartHubClient:
     """Async client for querying an EE SmartHub router via USP over MQTT."""
 
-    def __init__(self, hostname: str, password: str) -> None:
+    def __init__(
+        self, hostname: str, password: str, session: aiohttp.ClientSession
+    ) -> None:
         self._hostname = hostname
         self._password = password
+        self._session = session
         self._serial: str | None = None
 
     async def _fetch_serial(self) -> str:
@@ -23,10 +26,9 @@ class SmartHubClient:
 
         url = f"https://{self._hostname}/config.json"
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url, ssl=False) as resp:
-                    resp.raise_for_status()
-                    data = await resp.json(content_type=None)
+            async with self._session.get(url, ssl=False) as resp:
+                resp.raise_for_status()
+                data = await resp.json(content_type=None)
         except aiohttp.ClientError as exc:
             raise CommunicationError(
                 f"Failed to fetch serial number from {url}: {exc}"
@@ -41,6 +43,11 @@ class SmartHubClient:
             raise ProtocolError("SerialNumber missing from config.json response")
         self._serial = serial
         return serial
+
+    async def validate_connection(self) -> None:
+        """Verify that the router is reachable and credentials are valid."""
+        await self._fetch_serial()
+        await test_credentials(self._hostname, self._password)
 
     async def get_hosts(self) -> list[Host]:
         """Fetch the list of connected hosts from the router."""

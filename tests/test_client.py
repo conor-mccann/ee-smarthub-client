@@ -5,7 +5,7 @@ import pytest
 
 from ee_smarthub._mqtt import AGENT_ID_PREFIX, CONTROLLER_ID
 from ee_smarthub.client import SmartHubClient
-from ee_smarthub.exceptions import CommunicationError, ProtocolError
+from ee_smarthub.exceptions import AuthenticationError, CommunicationError, ProtocolError
 from ee_smarthub.models import Host
 
 _SERIAL = "CP2231TEST"
@@ -32,15 +32,53 @@ def _mock_response(*, json_data=None, status=200, json_error=None):
 
 
 def _mock_session(mock_resp=None, *, get_error=None):
-    """Create a mock aiohttp session context manager."""
-    mock = MagicMock()
+    """Create a mock aiohttp session."""
+    session = MagicMock()
     if get_error:
-        mock.get = MagicMock(side_effect=get_error)
+        session.get = MagicMock(side_effect=get_error)
     else:
-        mock.get = MagicMock(return_value=mock_resp)
-    mock.__aenter__ = AsyncMock(return_value=mock)
-    mock.__aexit__ = AsyncMock(return_value=False)
-    return mock
+        session.get = MagicMock(return_value=mock_resp)
+    return session
+
+
+@pytest.mark.asyncio
+async def test_validate_connection():
+    session = MagicMock()
+    client = SmartHubClient("192.168.1.1", "secret", session)
+
+    with (
+        patch.object(client, "_fetch_serial", new_callable=AsyncMock, return_value=_SERIAL),
+        patch("ee_smarthub.client.test_credentials", new_callable=AsyncMock) as mock_creds,
+    ):
+        await client.validate_connection()
+
+    mock_creds.assert_called_once_with("192.168.1.1", "secret")
+
+
+@pytest.mark.asyncio
+async def test_validate_connection_serial_failure():
+    session = _mock_session(get_error=aiohttp.ClientError("Connection refused"))
+
+    client = SmartHubClient("192.168.1.1", "secret", session)
+    with pytest.raises(CommunicationError, match="Failed to fetch serial number"):
+        await client.validate_connection()
+
+
+@pytest.mark.asyncio
+async def test_validate_connection_auth_failure():
+    session = MagicMock()
+    client = SmartHubClient("192.168.1.1", "secret", session)
+
+    with (
+        patch.object(client, "_fetch_serial", new_callable=AsyncMock, return_value=_SERIAL),
+        patch(
+            "ee_smarthub.client.test_credentials",
+            new_callable=AsyncMock,
+            side_effect=AuthenticationError("Router rejected MQTT connection"),
+        ),
+    ):
+        with pytest.raises(AuthenticationError, match="Router rejected MQTT connection"):
+            await client.validate_connection()
 
 
 @pytest.mark.asyncio
@@ -48,7 +86,8 @@ async def test_get_hosts():
     raw_response = b"\x01\x02\x03"
     expected_hosts = [Host(mac_address="AA:BB:CC:DD:EE:FF", hostname="phone", ip_address="192.168.1.10")]
 
-    client = SmartHubClient("192.168.1.1", "secret")
+    session = MagicMock()
+    client = SmartHubClient("192.168.1.1", "secret", session)
 
     with (
         patch.object(client, "_fetch_serial", new_callable=AsyncMock, return_value=_SERIAL),
@@ -73,9 +112,8 @@ async def test_fetch_serial():
     resp = _mock_response(json_data={"SerialNumber": _SERIAL})
     session = _mock_session(resp)
 
-    with patch("ee_smarthub.client.aiohttp.ClientSession", return_value=session):
-        client = SmartHubClient("192.168.1.1", "secret")
-        serial = await client._fetch_serial()
+    client = SmartHubClient("192.168.1.1", "secret", session)
+    serial = await client._fetch_serial()
 
     assert serial == _SERIAL
     session.get.assert_called_once_with("https://192.168.1.1/config.json", ssl=False)
@@ -85,10 +123,9 @@ async def test_fetch_serial():
 async def test_fetch_serial_http_error():
     session = _mock_session(get_error=aiohttp.ClientError("Connection refused"))
 
-    with patch("ee_smarthub.client.aiohttp.ClientSession", return_value=session):
-        client = SmartHubClient("192.168.1.1", "secret")
-        with pytest.raises(CommunicationError, match="Failed to fetch serial number"):
-            await client._fetch_serial()
+    client = SmartHubClient("192.168.1.1", "secret", session)
+    with pytest.raises(CommunicationError, match="Failed to fetch serial number"):
+        await client._fetch_serial()
 
 
 @pytest.mark.asyncio
@@ -96,10 +133,9 @@ async def test_fetch_serial_http_status_error():
     resp = _mock_response(status=404)
     session = _mock_session(resp)
 
-    with patch("ee_smarthub.client.aiohttp.ClientSession", return_value=session):
-        client = SmartHubClient("192.168.1.1", "secret")
-        with pytest.raises(CommunicationError, match="Failed to fetch serial number"):
-            await client._fetch_serial()
+    client = SmartHubClient("192.168.1.1", "secret", session)
+    with pytest.raises(CommunicationError, match="Failed to fetch serial number"):
+        await client._fetch_serial()
 
 
 @pytest.mark.asyncio
@@ -107,10 +143,9 @@ async def test_fetch_serial_invalid_json():
     resp = _mock_response(json_error=ValueError("No JSON"))
     session = _mock_session(resp)
 
-    with patch("ee_smarthub.client.aiohttp.ClientSession", return_value=session):
-        client = SmartHubClient("192.168.1.1", "secret")
-        with pytest.raises(ProtocolError, match="Invalid JSON response"):
-            await client._fetch_serial()
+    client = SmartHubClient("192.168.1.1", "secret", session)
+    with pytest.raises(ProtocolError, match="Invalid JSON response"):
+        await client._fetch_serial()
 
 
 @pytest.mark.asyncio
@@ -118,7 +153,6 @@ async def test_fetch_serial_missing_serial():
     resp = _mock_response(json_data={"SomeOtherKey": "value"})
     session = _mock_session(resp)
 
-    with patch("ee_smarthub.client.aiohttp.ClientSession", return_value=session):
-        client = SmartHubClient("192.168.1.1", "secret")
-        with pytest.raises(ProtocolError, match="SerialNumber missing"):
-            await client._fetch_serial()
+    client = SmartHubClient("192.168.1.1", "secret", session)
+    with pytest.raises(ProtocolError, match="SerialNumber missing"):
+        await client._fetch_serial()
