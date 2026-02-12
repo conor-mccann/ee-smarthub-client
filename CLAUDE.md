@@ -14,7 +14,7 @@ pip install -e ".[dev]"
 
 ```
 src/ee_smarthub/
-├── __init__.py          # Public API re-exports (done last)
+├── __init__.py          # Public API re-exports + __version__
 ├── client.py            # SmartHubClient — main entry point
 ├── exceptions.py        # Custom exception hierarchy
 ├── models.py            # Output dataclasses (e.g. Host)
@@ -38,7 +38,7 @@ The library uses a short-lived connection model — open, fetch, close. No persi
 
 ## Key Decisions
 
-- **Host model is intentionally minimal** (`name`, `ip_address`, `mac_address`). Expand fields in `_usp.py` based on what the actual USP `GetResp` returns — do not add fields speculatively.
+- **Host model fields** match what the router actually returns. Do not add fields speculatively — expand based on real USP `GetResp` data.
 - **Self-signed certificates**: The router uses self-signed SSL. Certificate verification is intentionally disabled for both HTTPS and WebSocket connections.
 - **Proto regeneration**: Run `./scripts/generate_proto.sh` to regenerate code in `proto/` from the Broadband Forum USP spec. Do not hand-edit anything in `proto/`.
 

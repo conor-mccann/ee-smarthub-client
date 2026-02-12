@@ -1,3 +1,6 @@
+"""USP protobuf encoding and decoding for Get requests and responses."""
+
+import logging
 import re
 import uuid
 
@@ -5,6 +8,8 @@ from .exceptions import ProtocolError
 from .models import Host
 from .proto.usp import Body, Get, Header, HeaderMsgType, Msg, Request
 from .proto.usp_record import NoSessionContextRecord, Record, RecordPayloadSecurity
+
+logger = logging.getLogger(__name__)
 
 _HOST_PATH_RE = re.compile(r"^(Device\.Hosts\.Host\.\d+\.)")
 
@@ -70,7 +75,15 @@ def parse_get_response(data: bytes) -> list[Host]:
             params = grouped.setdefault(host_prefix, {})
             params.update(resolved.result_params)
 
-    return [host for g in grouped.values() if (host := _params_to_host(g)) is not None]
+    hosts = []
+    for prefix, params in grouped.items():
+        host = _params_to_host(params)
+        if host is not None:
+            hosts.append(host)
+        else:
+            logger.warning(f"Skipping {prefix} — no PhysAddress (MAC) found")
+    logger.debug(f"Parsed {len(hosts)} host(s) from {len(grouped)} path group(s)")
+    return hosts
 
 
 def _safe_int(value: str) -> int:

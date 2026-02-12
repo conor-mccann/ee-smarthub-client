@@ -1,4 +1,7 @@
+"""MQTT-over-WebSocket transport for USP communication with EE SmartHub routers."""
+
 import asyncio
+import logging
 import ssl
 import uuid
 
@@ -19,6 +22,8 @@ _TOPIC_REQUEST = "/{serial}/usp/admin/request"
 _TOPIC_RESPONSE = "/{serial}/usp/admin/response"
 _USERNAME = "admin"
 _WS_PATH = "/ws"
+
+logger = logging.getLogger(__name__)
 
 
 def _create_insecure_ssl_context() -> ssl.SSLContext:
@@ -52,6 +57,7 @@ async def test_credentials(hostname: str, password: str) -> None:
     ssl_ctx = _create_insecure_ssl_context()
     client_id = f"ee-smarthub-{uuid.uuid4().hex[:8]}"
 
+    logger.debug(f"Testing credentials for {hostname} (client_id={client_id})")
     try:
         async with aiomqtt.Client(
             hostname=hostname,
@@ -90,6 +96,7 @@ async def send_request(
     topic_request = _TOPIC_REQUEST.format(serial=serial)
     topic_response = _TOPIC_RESPONSE.format(serial=serial)
 
+    logger.debug(f"Sending USP request to {hostname} (client_id={client_id}, timeout={timeout:.1f}s)")
     try:
         async with aiomqtt.Client(
             hostname=hostname,
@@ -102,14 +109,17 @@ async def send_request(
             websocket_path=_WS_PATH,
         ) as client:
             await client.subscribe(topic_response, qos=1)
+            logger.debug(f"Subscribed to {topic_response}")
 
             connect_record = _build_connect_record(agent_id, topic_response)
             await client.publish(topic_request, payload=connect_record, qos=1)
 
             await client.publish(topic_request, payload=request_payload, qos=1)
+            logger.debug(f"Published request to {topic_request}")
 
             async with asyncio.timeout(timeout):
                 async for message in client.messages:
+                    logger.debug(f"Received response ({len(message.payload)} bytes)")
                     return message.payload
 
     except aiomqtt.MqttCodeError as exc:

@@ -1,3 +1,5 @@
+from importlib.metadata import version
+
 from .client import SmartHubClient
 from .exceptions import (
     AuthenticationError,
@@ -7,6 +9,8 @@ from .exceptions import (
 )
 from .models import Host
 
+__version__ = version("ee-smarthub")
+
 __all__ = [
     "AuthenticationError",
     "CommunicationError",
@@ -14,4 +18,5 @@ __all__ = [
     "ProtocolError",
     "SmartHubClient",
     "SmartHubError",
+    "__version__",
 ]
