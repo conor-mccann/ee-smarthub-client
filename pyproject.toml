@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ee-smarthub"
-version = "0.2.0"
+version = "0.3.0"
 authors = [
     { name = "Conor McCann" },
 ]
@@ -18,14 +18,14 @@ classifiers = [
     "Topic :: Home Automation",
 ]
 dependencies = [
-    "betterproto2>=0.9.1",
+    "betterproto2~=0.10.0",
     "aiomqtt>=2.0",
     "aiohttp>=3.9",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "betterproto2_compiler>=0.9.0",
+    "betterproto2_compiler~=0.10.0",
     "grpcio-tools>=1.76.0",
     "pytest>=8.0",
     "pytest-asyncio>=1.0",
