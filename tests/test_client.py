@@ -57,8 +57,9 @@ async def test_validate_connection():
             "ee_smarthub.client.check_credentials", new_callable=AsyncMock
         ) as mock_creds,
     ):
-        await client.validate_connection()
+        serial = await client.validate_connection()
 
+    assert serial == _SERIAL
     mock_creds.assert_called_once_with("192.168.1.1", "secret", timeout=10.0)
 
 

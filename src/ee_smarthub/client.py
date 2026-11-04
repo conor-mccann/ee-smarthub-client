@@ -39,12 +39,17 @@ class SmartHubClient:
         self._timeout = timeout
         self._serial: str | None = None
 
-    async def validate_connection(self) -> None:
-        """Verify that the router is reachable and credentials are valid."""
+    async def validate_connection(self) -> str:
+        """Verify that the router is reachable and credentials are valid.
+
+        Returns:
+            The router's serial number.
+        """
         logger.debug("Validating connection to %s", self._hostname)
-        await self._fetch_serial()
+        serial = await self._fetch_serial()
         await check_credentials(self._hostname, self._password, timeout=self._timeout)
         logger.debug("Connection to %s validated successfully", self._hostname)
+        return serial
 
     async def get_hosts(self) -> list[Host]:
         """Fetch the list of connected hosts from the router."""

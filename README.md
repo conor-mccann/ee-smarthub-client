@@ -46,8 +46,10 @@ To check that the router is reachable and the password is correct without fetchi
 ```python
 async with aiohttp.ClientSession() as session:
     client = SmartHubClient("192.168.1.1", "your-password", session)
-    await client.validate_connection()  # raises on failure
+    serial = await client.validate_connection()  # raises on failure
 ```
+
+It returns the router's serial number.
 
 This performs an HTTP fetch and MQTT connect/disconnect. It raises `AuthenticationError` if the router rejects the password, `CommunicationError` if it can't be reached or times out, and `ProtocolError` if `config.json` is malformed.
 
