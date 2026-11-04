@@ -217,20 +217,25 @@ def test_response_msg_id_missing_no_session_context():
 
 
 def test_parse_single_host():
-    data = _build_response_bytes([
-        GetRespRequestedPathResult(
-            requested_path="Device.Hosts.Host.",
-            err_code=0,
-            resolved_path_results=[
-                _host_path_result(1, {
-                    "PhysAddress": "AA:BB:CC:DD:EE:FF",
-                    "IPAddress": "192.168.1.10",
-                    "HostName": "phone",
-                    "Active": "1",
-                }),
-            ],
-        ),
-    ])
+    data = _build_response_bytes(
+        [
+            GetRespRequestedPathResult(
+                requested_path="Device.Hosts.Host.",
+                err_code=0,
+                resolved_path_results=[
+                    _host_path_result(
+                        1,
+                        {
+                            "PhysAddress": "AA:BB:CC:DD:EE:FF",
+                            "IPAddress": "192.168.1.10",
+                            "HostName": "phone",
+                            "Active": "1",
+                        },
+                    ),
+                ],
+            ),
+        ]
+    )
     hosts = parse_get_response(data)
     assert len(hosts) == 1
     assert hosts[0].mac_address == "AA:BB:CC:DD:EE:FF"
@@ -239,22 +244,30 @@ def test_parse_single_host():
 
 
 def test_parse_multiple_hosts():
-    data = _build_response_bytes([
-        GetRespRequestedPathResult(
-            requested_path="Device.Hosts.Host.",
-            err_code=0,
-            resolved_path_results=[
-                _host_path_result(1, {
-                    "PhysAddress": "AA:BB:CC:DD:EE:01",
-                    "HostName": "phone",
-                }),
-                _host_path_result(2, {
-                    "PhysAddress": "AA:BB:CC:DD:EE:02",
-                    "HostName": "laptop",
-                }),
-            ],
-        ),
-    ])
+    data = _build_response_bytes(
+        [
+            GetRespRequestedPathResult(
+                requested_path="Device.Hosts.Host.",
+                err_code=0,
+                resolved_path_results=[
+                    _host_path_result(
+                        1,
+                        {
+                            "PhysAddress": "AA:BB:CC:DD:EE:01",
+                            "HostName": "phone",
+                        },
+                    ),
+                    _host_path_result(
+                        2,
+                        {
+                            "PhysAddress": "AA:BB:CC:DD:EE:02",
+                            "HostName": "laptop",
+                        },
+                    ),
+                ],
+            ),
+        ]
+    )
     hosts = parse_get_response(data)
     assert len(hosts) == 2
     macs = {h.mac_address for h in hosts}
@@ -263,22 +276,31 @@ def test_parse_multiple_hosts():
 
 def test_parse_sub_paths_merged():
     """WANStats sub-paths should merge into the parent host."""
-    data = _build_response_bytes([
-        GetRespRequestedPathResult(
-            requested_path="Device.Hosts.Host.",
-            err_code=0,
-            resolved_path_results=[
-                _host_path_result(1, {
-                    "PhysAddress": "AA:BB:CC:DD:EE:FF",
-                    "IPAddress": "192.168.1.10",
-                }),
-                _host_path_result(1, {
-                    "BytesSent": "500",
-                    "BytesReceived": "1000",
-                }, sub_path="WANStats."),
-            ],
-        ),
-    ])
+    data = _build_response_bytes(
+        [
+            GetRespRequestedPathResult(
+                requested_path="Device.Hosts.Host.",
+                err_code=0,
+                resolved_path_results=[
+                    _host_path_result(
+                        1,
+                        {
+                            "PhysAddress": "AA:BB:CC:DD:EE:FF",
+                            "IPAddress": "192.168.1.10",
+                        },
+                    ),
+                    _host_path_result(
+                        1,
+                        {
+                            "BytesSent": "500",
+                            "BytesReceived": "1000",
+                        },
+                        sub_path="WANStats.",
+                    ),
+                ],
+            ),
+        ]
+    )
     hosts = parse_get_response(data)
     assert len(hosts) == 1
     assert hosts[0].bytes_sent == 500
@@ -286,31 +308,38 @@ def test_parse_sub_paths_merged():
 
 
 def test_parse_host_without_mac_skipped():
-    data = _build_response_bytes([
-        GetRespRequestedPathResult(
-            requested_path="Device.Hosts.Host.",
-            err_code=0,
-            resolved_path_results=[
-                _host_path_result(1, {"IPAddress": "192.168.1.10"}),
-                _host_path_result(2, {
-                    "PhysAddress": "AA:BB:CC:DD:EE:FF",
-                }),
-            ],
-        ),
-    ])
+    data = _build_response_bytes(
+        [
+            GetRespRequestedPathResult(
+                requested_path="Device.Hosts.Host.",
+                err_code=0,
+                resolved_path_results=[
+                    _host_path_result(1, {"IPAddress": "192.168.1.10"}),
+                    _host_path_result(
+                        2,
+                        {
+                            "PhysAddress": "AA:BB:CC:DD:EE:FF",
+                        },
+                    ),
+                ],
+            ),
+        ]
+    )
     hosts = parse_get_response(data)
     assert len(hosts) == 1
     assert hosts[0].mac_address == "AA:BB:CC:DD:EE:FF"
 
 
 def test_parse_empty_response():
-    data = _build_response_bytes([
-        GetRespRequestedPathResult(
-            requested_path="Device.Hosts.Host.",
-            err_code=0,
-            resolved_path_results=[],
-        ),
-    ])
+    data = _build_response_bytes(
+        [
+            GetRespRequestedPathResult(
+                requested_path="Device.Hosts.Host.",
+                err_code=0,
+                resolved_path_results=[],
+            ),
+        ]
+    )
     hosts = parse_get_response(data)
     assert hosts == []
 
@@ -331,14 +360,16 @@ def test_parse_usp_body_error():
 
 
 def test_parse_path_result_error():
-    data = _build_response_bytes([
-        GetRespRequestedPathResult(
-            requested_path="Device.Hosts.Host.",
-            err_code=7012,
-            err_msg="Invalid path",
-            resolved_path_results=[],
-        ),
-    ])
+    data = _build_response_bytes(
+        [
+            GetRespRequestedPathResult(
+                requested_path="Device.Hosts.Host.",
+                err_code=7012,
+                err_msg="Invalid path",
+                resolved_path_results=[],
+            ),
+        ]
+    )
     with pytest.raises(ProtocolError, match="USP error 7012"):
         parse_get_response(data)
 

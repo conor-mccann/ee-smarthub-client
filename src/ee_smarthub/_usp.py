@@ -85,7 +85,11 @@ def parse_get_response(data: bytes) -> list[Host]:
         err = msg.body.error
         raise ProtocolError(f"USP error {err.err_code}: {err.err_msg}")
 
-    if msg.body is None or msg.body.response is None or msg.body.response.get_resp is None:
+    if (
+        msg.body is None
+        or msg.body.response is None
+        or msg.body.response.get_resp is None
+    ):
         raise ProtocolError("Response missing expected get_resp structure")
 
     get_resp = msg.body.response.get_resp

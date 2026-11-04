@@ -92,9 +92,7 @@ async def test_send_request_skips_non_matching_messages():
     mock = _mock_client(_messages(b"garbage", other, request))
 
     with patch(_PATCH_TARGET, return_value=mock):
-        result = await send_request(
-            "192.168.1.1", "secret", serial, request, msg_id
-        )
+        result = await send_request("192.168.1.1", "secret", serial, request, msg_id)
 
     assert result == request
 
@@ -106,9 +104,11 @@ async def test_send_request_no_matching_message_before_stream_ends():
     _, other = build_get_request(serial, "Device.Hosts.Host.")
     mock = _mock_client(_messages(other))
 
-    with patch(_PATCH_TARGET, return_value=mock):
-        with pytest.raises(ProtocolError, match="No response"):
-            await send_request("192.168.1.1", "secret", serial, request, msg_id)
+    with (
+        patch(_PATCH_TARGET, return_value=mock),
+        pytest.raises(ProtocolError, match="No response"),
+    ):
+        await send_request("192.168.1.1", "secret", serial, request, msg_id)
 
 
 @pytest.mark.asyncio
@@ -118,9 +118,11 @@ async def test_send_request_auth_error(code):
     mock.__aenter__ = AsyncMock(side_effect=_connack_error(code))
     mock.__aexit__ = AsyncMock(return_value=False)
 
-    with patch(_PATCH_TARGET, return_value=mock):
-        with pytest.raises(AuthenticationError, match="Router rejected MQTT connection"):
-            await send_request("192.168.1.1", "wrong", "ABC123", b"", "id")
+    with (
+        patch(_PATCH_TARGET, return_value=mock),
+        pytest.raises(AuthenticationError, match="Router rejected MQTT connection"),
+    ):
+        await send_request("192.168.1.1", "wrong", "ABC123", b"", "id")
 
 
 @pytest.mark.asyncio
@@ -129,9 +131,11 @@ async def test_send_request_server_unavailable_is_not_auth_error():
     mock.__aenter__ = AsyncMock(side_effect=_connack_error(3))
     mock.__aexit__ = AsyncMock(return_value=False)
 
-    with patch(_PATCH_TARGET, return_value=mock):
-        with pytest.raises(CommunicationError, match="connection refused"):
-            await send_request("192.168.1.1", "pass", "ABC123", b"", "id")
+    with (
+        patch(_PATCH_TARGET, return_value=mock),
+        pytest.raises(CommunicationError, match="connection refused"),
+    ):
+        await send_request("192.168.1.1", "pass", "ABC123", b"", "id")
 
 
 @pytest.mark.asyncio
@@ -142,9 +146,11 @@ async def test_send_request_generic_code_error_is_communication_error():
     )
     mock.__aexit__ = AsyncMock(return_value=False)
 
-    with patch(_PATCH_TARGET, return_value=mock):
-        with pytest.raises(CommunicationError, match="MQTT communication failed"):
-            await send_request("192.168.1.1", "pass", "ABC123", b"", "id")
+    with (
+        patch(_PATCH_TARGET, return_value=mock),
+        pytest.raises(CommunicationError, match="MQTT communication failed"),
+    ):
+        await send_request("192.168.1.1", "pass", "ABC123", b"", "id")
 
 
 @pytest.mark.asyncio
@@ -153,20 +159,22 @@ async def test_send_request_connection_error():
     mock.__aenter__ = AsyncMock(side_effect=aiomqtt.MqttError("Connection refused"))
     mock.__aexit__ = AsyncMock(return_value=False)
 
-    with patch(_PATCH_TARGET, return_value=mock):
-        with pytest.raises(CommunicationError, match="MQTT communication failed"):
-            await send_request("192.168.1.1", "pass", "ABC123", b"", "id")
+    with (
+        patch(_PATCH_TARGET, return_value=mock),
+        pytest.raises(CommunicationError, match="MQTT communication failed"),
+    ):
+        await send_request("192.168.1.1", "pass", "ABC123", b"", "id")
 
 
 @pytest.mark.asyncio
 async def test_send_request_timeout():
     mock = _mock_client(_hang_forever())
 
-    with patch(_PATCH_TARGET, return_value=mock):
-        with pytest.raises(CommunicationError, match="Timed out"):
-            await send_request(
-                "192.168.1.1", "pass", "ABC123", b"", "id", timeout=0.05
-            )
+    with (
+        patch(_PATCH_TARGET, return_value=mock),
+        pytest.raises(CommunicationError, match="Timed out"),
+    ):
+        await send_request("192.168.1.1", "pass", "ABC123", b"", "id", timeout=0.05)
 
 
 @pytest.mark.asyncio
@@ -186,9 +194,11 @@ async def test_check_credentials_bad_password():
     mock.__aenter__ = AsyncMock(side_effect=_connack_error(4))
     mock.__aexit__ = AsyncMock(return_value=False)
 
-    with patch(_PATCH_TARGET, return_value=mock):
-        with pytest.raises(AuthenticationError):
-            await check_credentials("192.168.1.1", "wrong")
+    with (
+        patch(_PATCH_TARGET, return_value=mock),
+        pytest.raises(AuthenticationError),
+    ):
+        await check_credentials("192.168.1.1", "wrong")
 
 
 @pytest.mark.asyncio
@@ -197,6 +207,5 @@ async def test_check_credentials_network_error():
     mock.__aenter__ = AsyncMock(side_effect=aiomqtt.MqttError("unreachable"))
     mock.__aexit__ = AsyncMock(return_value=False)
 
-    with patch(_PATCH_TARGET, return_value=mock):
-        with pytest.raises(CommunicationError):
-            await check_credentials("192.168.1.1", "pw")
+    with patch(_PATCH_TARGET, return_value=mock), pytest.raises(CommunicationError):
+        await check_credentials("192.168.1.1", "pw")

@@ -43,9 +43,7 @@ class SmartHubClient:
         """Verify that the router is reachable and credentials are valid."""
         logger.debug("Validating connection to %s", self._hostname)
         await self._fetch_serial()
-        await check_credentials(
-            self._hostname, self._password, timeout=self._timeout
-        )
+        await check_credentials(self._hostname, self._password, timeout=self._timeout)
         logger.debug("Connection to %s validated successfully", self._hostname)
 
     async def get_hosts(self) -> list[Host]:
@@ -82,9 +80,7 @@ class SmartHubClient:
                 f"Failed to fetch serial number from {url}: {exc!r}"
             ) from exc
         except ValueError as exc:
-            raise ProtocolError(
-                f"Invalid JSON response from {url}: {exc}"
-            ) from exc
+            raise ProtocolError(f"Invalid JSON response from {url}: {exc}") from exc
 
         if not isinstance(data, dict):
             raise ProtocolError(

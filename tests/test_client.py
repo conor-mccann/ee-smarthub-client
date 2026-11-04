@@ -4,7 +4,11 @@ import aiohttp
 import pytest
 
 from ee_smarthub.client import SmartHubClient
-from ee_smarthub.exceptions import AuthenticationError, CommunicationError, ProtocolError
+from ee_smarthub.exceptions import (
+    AuthenticationError,
+    CommunicationError,
+    ProtocolError,
+)
 from ee_smarthub.models import Host
 
 _SERIAL = "CP2231TEST"
@@ -46,8 +50,12 @@ async def test_validate_connection():
     client = SmartHubClient("192.168.1.1", "secret", session)
 
     with (
-        patch.object(client, "_fetch_serial", new_callable=AsyncMock, return_value=_SERIAL),
-        patch("ee_smarthub.client.check_credentials", new_callable=AsyncMock) as mock_creds,
+        patch.object(
+            client, "_fetch_serial", new_callable=AsyncMock, return_value=_SERIAL
+        ),
+        patch(
+            "ee_smarthub.client.check_credentials", new_callable=AsyncMock
+        ) as mock_creds,
     ):
         await client.validate_connection()
 
@@ -69,30 +77,46 @@ async def test_validate_connection_auth_failure():
     client = SmartHubClient("192.168.1.1", "secret", session)
 
     with (
-        patch.object(client, "_fetch_serial", new_callable=AsyncMock, return_value=_SERIAL),
+        patch.object(
+            client, "_fetch_serial", new_callable=AsyncMock, return_value=_SERIAL
+        ),
         patch(
             "ee_smarthub.client.check_credentials",
             new_callable=AsyncMock,
             side_effect=AuthenticationError("Router rejected MQTT connection"),
         ),
+        pytest.raises(AuthenticationError, match="Router rejected MQTT connection"),
     ):
-        with pytest.raises(AuthenticationError, match="Router rejected MQTT connection"):
-            await client.validate_connection()
+        await client.validate_connection()
 
 
 @pytest.mark.asyncio
 async def test_get_hosts():
     raw_response = b"\x01\x02\x03"
-    expected_hosts = [Host(mac_address="AA:BB:CC:DD:EE:FF", hostname="phone", ip_address="192.168.1.10")]
+    expected_hosts = [
+        Host(
+            mac_address="AA:BB:CC:DD:EE:FF", hostname="phone", ip_address="192.168.1.10"
+        )
+    ]
 
     session = MagicMock()
     client = SmartHubClient("192.168.1.1", "secret", session)
 
     with (
-        patch.object(client, "_fetch_serial", new_callable=AsyncMock, return_value=_SERIAL),
-        patch("ee_smarthub.client.send_request", new_callable=AsyncMock, return_value=raw_response) as mock_send,
-        patch("ee_smarthub.client.build_get_request", return_value=("mid", b"\xaa\xbb")) as mock_build,
-        patch("ee_smarthub.client.parse_get_response", return_value=expected_hosts) as mock_parse,
+        patch.object(
+            client, "_fetch_serial", new_callable=AsyncMock, return_value=_SERIAL
+        ),
+        patch(
+            "ee_smarthub.client.send_request",
+            new_callable=AsyncMock,
+            return_value=raw_response,
+        ) as mock_send,
+        patch(
+            "ee_smarthub.client.build_get_request", return_value=("mid", b"\xaa\xbb")
+        ) as mock_build,
+        patch(
+            "ee_smarthub.client.parse_get_response", return_value=expected_hosts
+        ) as mock_parse,
     ):
         hosts = await client.get_hosts()
 

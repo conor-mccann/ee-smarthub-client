@@ -44,3 +44,4 @@ asyncio_mode = "strict"
 
 [tool.ruff]
 target-version = "py311"
+extend-exclude = ["src/ee_smarthub/proto"]
