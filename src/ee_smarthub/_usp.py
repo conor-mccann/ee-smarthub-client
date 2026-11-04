@@ -7,33 +7,65 @@ import uuid
 from .exceptions import ProtocolError
 from .models import Host
 from .proto.usp import Body, Get, Header, HeaderMsgType, Msg, Request
-from .proto.usp_record import NoSessionContextRecord, Record, RecordPayloadSecurity
+from .proto.usp_record import (
+    MqttConnectRecord,
+    MqttConnectRecordMqttVersion,
+    NoSessionContextRecord,
+    Record,
+    RecordPayloadSecurity,
+)
 
 logger = logging.getLogger(__name__)
 
-_HOST_PATH_RE = re.compile(r"^(Device\.Hosts\.Host\.\d+\.)")
+CONTROLLER_ID = "usp-gui-admin"
+AGENT_ID_PREFIX = "os::012345-"
+HOST_PATH = "Device.Hosts.Host."
 
-_FREQUENCY_BANDS = {"Radio.1": "2.4GHz", "Radio.2": "5GHz", "Radio.3": "6GHz"}
+_RECORD_VERSION = "1.4"
+_HOST_PATH_RE = re.compile(rf"^({re.escape(HOST_PATH)}\d+\.)")
+
+_FREQUENCY_BANDS = {"Radio.1": "2.4GHz", "Radio.2": "5GHz"}
 
 
-def build_get_request(to_id: str, from_id: str, path: str) -> bytes:
-    """Build a Record-framed USP Get request for the given path."""
+def build_connect_record(serial: str, subscribe_topic: str) -> bytes:
+    """Build the USP MqttConnectRecord that tells the Agent our reply topic."""
+    return _build_record(
+        serial,
+        mqtt_connect=MqttConnectRecord(
+            version=MqttConnectRecordMqttVersion.V3_1_1,
+            subscribed_topic=subscribe_topic,
+        ),
+    )
+
+
+def build_get_request(serial: str, path: str) -> tuple[str, bytes]:
+    """Build a Record-framed USP Get request for the given path.
+
+    Returns the request's ``msg_id`` (used to match the response) and the
+    encoded Record.
+    """
     get = Get(param_paths=[path], max_depth=0)
     request = Request(get=get)
     body = Body(request=request)
     msg_id = str(uuid.uuid4())
     header = Header(msg_id=msg_id, msg_type=HeaderMsgType.GET)
     msg = Msg(header=header, body=body)
-    msg_bytes = bytes(msg)
-    no_session_context = NoSessionContextRecord(payload=msg_bytes)
-    record = Record(
-        version="1.4",
-        to_id=to_id,
-        from_id=from_id,
-        payload_security=RecordPayloadSecurity.PLAINTEXT,
-        no_session_context=no_session_context,
+    record = _build_record(
+        serial, no_session_context=NoSessionContextRecord(payload=bytes(msg))
     )
-    return bytes(record)
+    return msg_id, record
+
+
+def response_msg_id(data: bytes) -> str | None:
+    """Return the USP ``msg_id`` of a Record-framed message, or None if unparsable."""
+    try:
+        record = Record().parse(data)
+        if record.no_session_context is None:
+            return None
+        msg = Msg().parse(record.no_session_context.payload)
+    except Exception:  # noqa: BLE001 - any decode failure just means "not ours"
+        return None
+    return msg.header.msg_id if msg.header is not None else None
 
 
 def parse_get_response(data: bytes) -> list[Host]:
@@ -81,9 +113,21 @@ def parse_get_response(data: bytes) -> list[Host]:
         if host is not None:
             hosts.append(host)
         else:
-            logger.warning(f"Skipping {prefix} — no PhysAddress (MAC) found")
-    logger.debug(f"Parsed {len(hosts)} host(s) from {len(grouped)} path group(s)")
+            logger.warning("Skipping %s — no PhysAddress (MAC) found", prefix)
+    logger.debug("Parsed %d host(s) from %d path group(s)", len(hosts), len(grouped))
     return hosts
+
+
+def _build_record(serial: str, **payload) -> bytes:
+    """Frame a payload (``no_session_context=`` or ``mqtt_connect=``) in a Record."""
+    record = Record(
+        version=_RECORD_VERSION,
+        to_id=AGENT_ID_PREFIX + serial,
+        from_id=CONTROLLER_ID,
+        payload_security=RecordPayloadSecurity.PLAINTEXT,
+        **payload,
+    )
+    return bytes(record)
 
 
 def _safe_int(value: str) -> int:

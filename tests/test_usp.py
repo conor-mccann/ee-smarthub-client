@@ -1,11 +1,14 @@
 import pytest
 
 from ee_smarthub._usp import (
+    CONTROLLER_ID,
     _extract_frequency,
     _params_to_host,
     _safe_int,
+    build_connect_record,
     build_get_request,
     parse_get_response,
+    response_msg_id,
 )
 from ee_smarthub.exceptions import ProtocolError
 from ee_smarthub.models import Host
@@ -89,8 +92,8 @@ def test_extract_frequency_5ghz():
     assert _extract_frequency("Device.WiFi.Radio.2.Interface") == "5GHz"
 
 
-def test_extract_frequency_6ghz():
-    assert _extract_frequency("Device.WiFi.Radio.3.Interface") == "6GHz"
+def test_extract_frequency_unknown_radio():
+    assert _extract_frequency("Device.WiFi.Radio.3.Interface") is None
 
 
 def test_extract_frequency_ethernet():
@@ -158,23 +161,56 @@ def test_params_to_host_inactive():
 
 
 def test_build_get_request_round_trips():
-    data = build_get_request(
-        to_id="os::012345-SERIAL",
-        from_id="usp-gui-admin",
-        path="Device.Hosts.Host.",
-    )
+    msg_id, data = build_get_request("SERIAL", "Device.Hosts.Host.")
     record = Record().parse(data)
     assert record.to_id == "os::012345-SERIAL"
-    assert record.from_id == "usp-gui-admin"
+    assert record.from_id == CONTROLLER_ID
     assert record.no_session_context is not None
 
     msg = Msg().parse(record.no_session_context.payload)
     assert msg.header is not None
+    assert msg.header.msg_id == msg_id
     assert msg.header.msg_type == HeaderMsgType.GET
     assert msg.body is not None
     assert msg.body.request is not None
     assert msg.body.request.get is not None
     assert msg.body.request.get.param_paths == ["Device.Hosts.Host."]
+
+
+# --- build_connect_record ---
+
+
+def test_build_connect_record():
+    topic = "/SERIAL123/usp/admin/response"
+
+    record = Record().parse(build_connect_record("SERIAL123", topic))
+
+    assert record.to_id == "os::012345-SERIAL123"
+    assert record.from_id == CONTROLLER_ID
+    assert record.mqtt_connect is not None
+    assert record.mqtt_connect.subscribed_topic == topic
+
+
+# --- response_msg_id ---
+
+
+def test_response_msg_id_from_response():
+    data = _build_response_bytes([])
+    assert response_msg_id(data) == "test-1"
+
+
+def test_response_msg_id_round_trips_request():
+    msg_id, data = build_get_request("SERIAL", "Device.Hosts.Host.")
+    assert response_msg_id(data) == msg_id
+
+
+def test_response_msg_id_garbage():
+    assert response_msg_id(b"\xff\xff\xff") is None
+
+
+def test_response_msg_id_missing_no_session_context():
+    record = Record(version="1.4", to_id="a", from_id="b")
+    assert response_msg_id(bytes(record)) is None
 
 
 # --- parse_get_response ---

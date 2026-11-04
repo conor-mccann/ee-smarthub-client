@@ -22,7 +22,7 @@ pip install ee-smarthub
 
 ## Usage
 
-The client requires an `aiohttp.ClientSession`, allowing callers to manage session lifecycle.
+The client requires an `aiohttp.ClientSession`, allowing callers to manage session lifecycle. An optional `timeout=` argument (seconds, default 10) bounds each network operation.
 
 ```python
 import asyncio
@@ -49,7 +49,7 @@ async with aiohttp.ClientSession() as session:
     await client.validate_connection()  # raises on failure
 ```
 
-This performs an HTTP fetch and MQTT connect/disconnect.
+This performs an HTTP fetch and MQTT connect/disconnect. It raises `AuthenticationError` if the router rejects the password, `CommunicationError` if it can't be reached or times out, and `ProtocolError` if `config.json` is malformed.
 
 ### Host Fields
 
@@ -91,7 +91,7 @@ If the USP protocol specification is updated, regenerate the Python protobuf cod
 ./scripts/generate_proto.sh
 ```
 
-This downloads the latest `.proto` files from the Broadband Forum repository and generates Python code using `betterproto` into `src/ee_smarthub/proto/`.
+This downloads the `.proto` files from the Broadband Forum repository and generates Python code using `betterproto2` into `src/ee_smarthub/proto/`. By default it uses USP 1.4 from the `v1.4.2` tag; pass a different proto file version and git tag as arguments if needed, e.g. `./scripts/generate_proto.sh 1-4 v1.4.2`.
 
 ## Security Considerations
 

@@ -34,6 +34,6 @@ async def main(hostname: str, password: str) -> None:
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
-        print(__doc__.strip())
+        print((__doc__ or "").strip())
         sys.exit(1)
     asyncio.run(main(sys.argv[1], sys.argv[2]))

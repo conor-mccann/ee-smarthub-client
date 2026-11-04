@@ -3,7 +3,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import aiohttp
 import pytest
 
-from ee_smarthub._mqtt import AGENT_ID_PREFIX, CONTROLLER_ID
 from ee_smarthub.client import SmartHubClient
 from ee_smarthub.exceptions import AuthenticationError, CommunicationError, ProtocolError
 from ee_smarthub.models import Host
@@ -48,11 +47,11 @@ async def test_validate_connection():
 
     with (
         patch.object(client, "_fetch_serial", new_callable=AsyncMock, return_value=_SERIAL),
-        patch("ee_smarthub.client.test_credentials", new_callable=AsyncMock) as mock_creds,
+        patch("ee_smarthub.client.check_credentials", new_callable=AsyncMock) as mock_creds,
     ):
         await client.validate_connection()
 
-    mock_creds.assert_called_once_with("192.168.1.1", "secret")
+    mock_creds.assert_called_once_with("192.168.1.1", "secret", timeout=10.0)
 
 
 @pytest.mark.asyncio
@@ -72,7 +71,7 @@ async def test_validate_connection_auth_failure():
     with (
         patch.object(client, "_fetch_serial", new_callable=AsyncMock, return_value=_SERIAL),
         patch(
-            "ee_smarthub.client.test_credentials",
+            "ee_smarthub.client.check_credentials",
             new_callable=AsyncMock,
             side_effect=AuthenticationError("Router rejected MQTT connection"),
         ),
@@ -92,18 +91,17 @@ async def test_get_hosts():
     with (
         patch.object(client, "_fetch_serial", new_callable=AsyncMock, return_value=_SERIAL),
         patch("ee_smarthub.client.send_request", new_callable=AsyncMock, return_value=raw_response) as mock_send,
-        patch("ee_smarthub.client.build_get_request", return_value=b"\xaa\xbb") as mock_build,
+        patch("ee_smarthub.client.build_get_request", return_value=("mid", b"\xaa\xbb")) as mock_build,
         patch("ee_smarthub.client.parse_get_response", return_value=expected_hosts) as mock_parse,
     ):
         hosts = await client.get_hosts()
 
     assert hosts == expected_hosts
 
-    agent_id = AGENT_ID_PREFIX + _SERIAL
-    mock_build.assert_called_once_with(
-        to_id=agent_id, from_id=CONTROLLER_ID, path="Device.Hosts.Host."
+    mock_build.assert_called_once_with(_SERIAL, "Device.Hosts.Host.")
+    mock_send.assert_called_once_with(
+        "192.168.1.1", "secret", _SERIAL, b"\xaa\xbb", "mid", timeout=10.0
     )
-    mock_send.assert_called_once_with("192.168.1.1", "secret", _SERIAL, b"\xaa\xbb")
     mock_parse.assert_called_once_with(raw_response)
 
 
@@ -116,7 +114,11 @@ async def test_fetch_serial():
     serial = await client._fetch_serial()
 
     assert serial == _SERIAL
-    session.get.assert_called_once_with("https://192.168.1.1/config.json", ssl=False)
+    session.get.assert_called_once()
+    args, kwargs = session.get.call_args
+    assert args == ("https://192.168.1.1/config.json",)
+    assert kwargs["ssl"] is False
+    assert kwargs["timeout"].total == 10.0
 
 
 @pytest.mark.asyncio
@@ -125,6 +127,37 @@ async def test_fetch_serial_http_error():
 
     client = SmartHubClient("192.168.1.1", "secret", session)
     with pytest.raises(CommunicationError, match="Failed to fetch serial number"):
+        await client._fetch_serial()
+
+
+@pytest.mark.asyncio
+async def test_fetch_serial_timeout():
+    session = _mock_session(get_error=TimeoutError())
+
+    client = SmartHubClient("192.168.1.1", "secret", session)
+    with pytest.raises(CommunicationError, match="Failed to fetch serial number"):
+        await client._fetch_serial()
+
+
+@pytest.mark.asyncio
+async def test_fetch_serial_custom_timeout():
+    resp = _mock_response(json_data={"SerialNumber": _SERIAL})
+    session = _mock_session(resp)
+
+    client = SmartHubClient("192.168.1.1", "secret", session, timeout=3.0)
+    await client._fetch_serial()
+
+    assert session.get.call_args.kwargs["timeout"].total == 3.0
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("payload", [[], "text", None, 42])
+async def test_fetch_serial_non_object_json(payload):
+    resp = _mock_response(json_data=payload)
+    session = _mock_session(resp)
+
+    client = SmartHubClient("192.168.1.1", "secret", session)
+    with pytest.raises(ProtocolError, match="expected a JSON object"):
         await client._fetch_serial()
 
 
