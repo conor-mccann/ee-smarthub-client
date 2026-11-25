@@ -163,4 +163,6 @@ def _params_to_host(params: dict[str, str]) -> Host | None:
         frequency_band=_extract_frequency(params.get("Layer1Interface", "")),
         bytes_sent=_safe_int(params.get("BytesSent", "")),
         bytes_received=_safe_int(params.get("BytesReceived", "")),
+        # Wi-Fi and wired hosts fill in at least one of these.
+        connected=bool(params.get("AssociatedDevice") or params.get("Layer1Interface")),
     )

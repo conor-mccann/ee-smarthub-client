@@ -64,7 +64,8 @@ Each `Host` object contains:
 | `hostname`           | `str`            | DHCP hostname                                        |
 | `user_friendly_name` | `str`            | User-assigned name (BT vendor extension)             |
 | `name`               | `str` (property) | Best available name (user-friendly > hostname > MAC) |
-| `active`             | `bool`           | Currently connected                                  |
+| `active`             | `bool`           | Router's `Active` flag (can stay set after leaving)  |
+| `connected`          | `bool`           | False if the router reports no link for the device   |
 | `interface_type`     | `str`            | Connection type (e.g. "Wi-Fi", "Ethernet")           |
 | `frequency_band`     | `str \| None`    | Wi-Fi band (e.g. "2.4GHz", "5GHz")                   |
 | `bytes_sent`         | `int`            | Total bytes sent                                     |

@@ -14,6 +14,9 @@ class Host:
     frequency_band: str | None = None
     bytes_sent: int = 0
     bytes_received: int = 0
+    # False when the router reports a blank AssociatedDevice and Layer1Interface,
+    # seen on a departed phone that was still marked active.
+    connected: bool = True
 
     @property
     def name(self) -> str:
