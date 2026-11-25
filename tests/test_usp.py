@@ -157,6 +157,29 @@ def test_params_to_host_inactive():
     assert host.active is False
 
 
+@pytest.mark.parametrize(
+    ("links", "connected"),
+    [
+        # Departed phone still marked active: both reported blank.
+        ({"AssociatedDevice": "", "Layer1Interface": ""}, False),
+        ({"AssociatedDevice": ""}, False),
+        ({"Layer1Interface": ""}, False),
+        # Wi-Fi host with only an association.
+        ({"AssociatedDevice": "Device.WiFi.STA.1", "Layer1Interface": ""}, True),
+        # Wired host or mesh extender with only an interface.
+        ({"AssociatedDevice": "", "Layer1Interface": "Device.Ethernet.1"}, True),
+        ({"Layer1Interface": "Device.Ethernet.1"}, True),
+        # Neither parameter reported.
+        ({}, False),
+    ],
+)
+def test_params_to_host_connected(links, connected):
+    host = _params_to_host({"PhysAddress": "AA:BB:CC:DD:EE:FF", "Active": "1", **links})
+    assert host is not None
+    assert host.active is True
+    assert host.connected is connected
+
+
 # --- build_get_request ---
 
 
